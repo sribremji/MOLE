@@ -9,16 +9,18 @@ const { setupSocketHandlers } = require('./src/socketHandlers');
 const app = express();
 const httpServer = createServer(app);
 
-const FRONTEND_URL = process.env.FRONTEND_URL || '*';
-
+// Allow all origins — safe for a game with no auth/cookies
 const io = new Server(httpServer, {
   cors: {
-    origin: FRONTEND_URL,
+    origin: '*',
     methods: ['GET', 'POST'],
   },
+  // Start with polling so Render's proxy doesn't block the handshake,
+  // then upgrade to WebSocket automatically
+  transports: ['polling', 'websocket'],
 });
 
-app.use(cors({ origin: FRONTEND_URL }));
+app.use(cors());
 app.use(express.json());
 
 app.get('/', (_req, res) => res.json({ status: 'ok', game: 'The Mole' }));

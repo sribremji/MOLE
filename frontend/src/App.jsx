@@ -19,6 +19,7 @@ export default function App() {
   const [votedCount, setVotedCount] = useState(0);
   const [totalPlayers, setTotalPlayers] = useState(0);
   const [notification, setNotification] = useState('');
+  const [connected, setConnected] = useState(false);
 
   const notify = (msg) => {
     setNotification(msg);
@@ -27,6 +28,9 @@ export default function App() {
 
   useEffect(() => {
     socket.connect();
+
+    socket.on('connect', () => setConnected(true));
+    socket.on('disconnect', () => setConnected(false));
 
     socket.on('room_updated', ({ room }) => setRoom(room));
 
@@ -80,9 +84,11 @@ export default function App() {
       notify(`${playerName} left the game`);
     });
 
-    socket.on('connect_error', () => notify('Connection error — retrying…'));
+    socket.on('connect_error', () => notify('Cannot reach server — check your connection'));
 
     return () => {
+      socket.off('connect');
+      socket.off('disconnect');
       socket.off('room_updated');
       socket.off('game_started');
       socket.off('cycle_started');
@@ -130,6 +136,14 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
+      {/* Connection status pill */}
+      <div className="fixed top-3 right-3 z-50 flex items-center gap-1.5 bg-gray-900 border border-gray-800 rounded-full px-3 py-1.5 text-xs font-medium">
+        <span className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500 animate-pulse'}`} />
+        <span className={connected ? 'text-gray-400' : 'text-red-400'}>
+          {connected ? 'Connected' : 'Connecting…'}
+        </span>
+      </div>
+
       {notification && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-gray-800 border border-gray-700 text-white px-6 py-3 rounded-full shadow-xl text-sm font-medium animate-fade-in">
           {notification}
@@ -137,7 +151,7 @@ export default function App() {
       )}
 
       {phase === 'home' && (
-        <Home onCreateRoom={handleCreateRoom} onJoinRoom={handleJoinRoom} />
+        <Home onCreateRoom={handleCreateRoom} onJoinRoom={handleJoinRoom} connected={connected} />
       )}
       {phase === 'lobby' && (
         <Lobby room={room} roomCode={roomCode} socketId={socketId} />

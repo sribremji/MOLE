@@ -1,16 +1,18 @@
 import { useState } from 'react';
 
-export default function Home({ onCreateRoom, onJoinRoom }) {
+export default function Home({ onCreateRoom, onJoinRoom, connected }) {
   const [name, setName] = useState('');
   const [joinCode, setJoinCode] = useState('');
   const [mode, setMode] = useState(null); // null | 'create' | 'join'
 
   const handleCreate = () => {
+    if (!connected) return alert('Not connected to server yet — please wait');
     if (!name.trim()) return alert('Enter your name first');
     onCreateRoom(name.trim());
   };
 
   const handleJoin = () => {
+    if (!connected) return alert('Not connected to server yet — please wait');
     if (!name.trim()) return alert('Enter your name first');
     if (joinCode.trim().length !== 4) return alert('Enter a 4-letter room code');
     onJoinRoom(name.trim(), joinCode.trim());
@@ -101,7 +103,12 @@ export default function Home({ onCreateRoom, onJoinRoom }) {
           )}
         </div>
 
-        <p className="text-center text-gray-700 text-xs mt-6">Minimum 3 players to start</p>
+        {!connected && (
+          <p className="text-center text-red-500 text-sm mt-4 font-medium">
+            ⚠ Connecting to server… if this persists, check that VITE_SERVER_URL is set in Vercel.
+          </p>
+        )}
+        <p className="text-center text-gray-700 text-xs mt-3">Minimum 3 players to start</p>
       </div>
     </div>
   );
