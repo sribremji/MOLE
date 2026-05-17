@@ -44,9 +44,9 @@ export default function App() {
     socket.on('room_updated', ({ room }) => setRoom(room));
 
     // Fired on first start AND on play_again — reset all prior game state
-    socket.on('game_started', ({ isMole, word }) => {
+    socket.on('game_started', ({ isMole, word, hint }) => {
       resetGameState();
-      setGameSecret({ isMole, word });
+      setGameSecret({ isMole, word, hint });
       setPhase('secret');
     });
 
@@ -63,17 +63,17 @@ export default function App() {
       setCurrentCluePlayerId(currentPlayerId);
     });
 
-    socket.on('voting_phase_started', ({ room, clues }) => {
+    // clues intentionally NOT sent here — hidden until result screen
+    socket.on('voting_phase_started', ({ room }) => {
       setRoom(room);
-      setClues(clues);
       setVotedCount(0);
-      setTotalPlayers(room.players.length);
+      setTotalPlayers(room.players.filter((p) => p.id !== room.hostId).length); // placeholder; overwritten by vote_updated
       setPhase('voting');
     });
 
-    socket.on('vote_updated', ({ votedCount, totalPlayers }) => {
+    socket.on('vote_updated', ({ votedCount, totalVoters }) => {
       setVotedCount(votedCount);
-      setTotalPlayers(totalPlayers);
+      setTotalPlayers(totalVoters);
     });
 
     socket.on('game_result', (result) => {
@@ -178,6 +178,7 @@ export default function App() {
         <SecretCard
           isMole={gameSecret?.isMole}
           word={gameSecret?.word}
+          hint={gameSecret?.hint}
           isHost={isHost}
           onStartClues={handleStartClues}
         />
@@ -190,13 +191,14 @@ export default function App() {
           socketId={socketId}
           isMole={gameSecret?.isMole}
           word={gameSecret?.word}
+          hint={gameSecret?.hint}
         />
       )}
       {phase === 'voting' && (
         <VotingRound
           room={room}
-          clues={clues}
           socketId={socketId}
+          isMole={gameSecret?.isMole}
           votedCount={votedCount}
           totalPlayers={totalPlayers}
         />

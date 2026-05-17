@@ -1,6 +1,22 @@
 const { createRoom, getRoom, generateRoomCode, removePlayer, sanitizeRoom } = require('./gameState');
 const { getRandomWord } = require('./words');
 
+function startNewGame(room, totalCycles) {
+  const entry = getRandomWord(); // { word, hint }
+  room.word = entry.word;
+  room.moleHint = entry.hint;
+  room.moleId = room.players[Math.floor(Math.random() * room.players.length)].id;
+  room.phase = 'secret';
+  room.clues = [];
+  room.votes = {};
+  room.clueOrder = [...room.players.map((p) => p.id)].sort(() => Math.random() - 0.5);
+  room.currentClueIndex = 0;
+  room.currentCycle = 1;
+  if (totalCycles !== undefined) {
+    room.totalCycles = Math.min(Math.max(parseInt(totalCycles) || 3, 1), 10);
+  }
+}
+
 function setupSocketHandlers(io) {
   io.on('connection', (socket) => {
     console.log(`+ connected: ${socket.id}`);
@@ -40,16 +56,7 @@ function setupSocketHandlers(io) {
       if (room.hostId !== socket.id) return callback?.({ success: false, error: 'Only the host can start' });
       if (room.players.length < 3) return callback?.({ success: false, error: 'Need at least 3 players' });
 
-      // Reset and set up new round
-      room.word = getRandomWord();
-      room.moleId = room.players[Math.floor(Math.random() * room.players.length)].id;
-      room.phase = 'secret';
-      room.clues = [];
-      room.votes = {};
-      room.clueOrder = [...room.players.map((p) => p.id)].sort(() => Math.random() - 0.5);
-      room.currentClueIndex = 0;
-      room.currentCycle = 1;
-      room.totalCycles = Math.min(Math.max(parseInt(totalCycles) || 3, 1), 10);
+      startNewGame(room, totalCycles);
 
       // Send personalised secret to each player
       room.players.forEach((player) => {
@@ -57,6 +64,7 @@ function setupSocketHandlers(io) {
         io.to(player.id).emit('game_started', {
           isMole,
           word: isMole ? null : room.word,
+          hint: isMole ? room.moleHint : null,
         });
       });
 
@@ -91,8 +99,18 @@ function setupSocketHandlers(io) {
       if (socket.id !== currentPlayerId) return callback?.({ success: false, error: 'Not your turn' });
 
       const player = room.players.find((p) => p.id === socket.id);
-      const word = (clue || '').trim().split(/\s+/)[0]; // enforce one word
+      const word = (clue || '').trim().split(/\s+/)[0];
       if (!word) return callback?.({ success: false, error: 'Empty clue' });
+
+      // Duplicate check — case-insensitive, across all cycles
+      const lower = word.toLowerCase();
+      const duplicate = room.clues.find((c) => c.clue.toLowerCase() === lower);
+      if (duplicate) {
+        return callback?.({
+          success: false,
+          error: `"${duplicate.clue}" was already used by ${duplicate.playerName}. Try something else!`,
+        });
+      }
 
       room.clues.push({ playerId: socket.id, playerName: player.name, clue: word, cycle: room.currentCycle });
       room.currentClueIndex++;
@@ -101,21 +119,18 @@ function setupSocketHandlers(io) {
 
       if (cycleComplete) {
         if (room.currentCycle >= room.totalCycles) {
-          // All cycles done → voting
           room.phase = 'voting';
           io.to(roomCode).emit('voting_phase_started', {
             room: sanitizeRoom(room),
-            clues: room.clues,
           });
         } else {
-          // Advance to next cycle with a fresh shuffled order
           room.currentCycle++;
           room.currentClueIndex = 0;
           room.clueOrder = [...room.players.map((p) => p.id)].sort(() => Math.random() - 0.5);
-          const currentPlayerId = room.clueOrder[0];
+          const nextPlayerId = room.clueOrder[0];
           io.to(roomCode).emit('cycle_started', {
             room: sanitizeRoom(room),
-            currentPlayerId,
+            currentPlayerId: nextPlayerId,
           });
         }
       } else {
@@ -135,34 +150,45 @@ function setupSocketHandlers(io) {
       const room = getRoom(roomCode);
 
       if (!room || room.phase !== 'voting') return callback?.({ success: false, error: 'Not in voting phase' });
+      // Mole is not allowed to vote
+      if (socket.id === room.moleId) return callback?.({ success: false, error: 'Mole cannot vote' });
       if (targetId === socket.id) return callback?.({ success: false, error: 'Cannot vote for yourself' });
       if (!room.players.find((p) => p.id === targetId)) return callback?.({ success: false, error: 'Invalid target' });
 
       room.votes[socket.id] = targetId;
 
+      // Only non-mole players are required to vote
+      const requiredVoters = room.players.filter((p) => p.id !== room.moleId).length;
       const votedCount = Object.keys(room.votes).length;
-      const totalPlayers = room.players.length;
 
-      io.to(roomCode).emit('vote_updated', { votedCount, totalPlayers });
+      io.to(roomCode).emit('vote_updated', { votedCount, totalVoters: requiredVoters });
 
-      if (votedCount >= totalPlayers) {
-        // Tally
+      if (votedCount >= requiredVoters) {
+        // Build tally (for display)
         const tally = {};
         Object.values(room.votes).forEach((id) => {
           tally[id] = (tally[id] || 0) + 1;
         });
 
-        const maxVotes = Math.max(...Object.values(tally));
-        const topCandidates = Object.keys(tally).filter((id) => tally[id] === maxVotes);
-        // Tie = null (no one eliminated)
-        const eliminated = topCandidates.length === 1 ? topCandidates[0] : null;
-        const moleFound = eliminated === room.moleId;
-        const mole = room.players.find((p) => p.id === room.moleId);
+        // Players who correctly identified the Mole
+        const correctVoterIds = Object.entries(room.votes)
+          .filter(([, targetId]) => targetId === room.moleId)
+          .map(([voterId]) => voterId);
 
+        // Win condition: at least ONE correct vote
+        const moleFound = correctVoterIds.length > 0;
+
+        // Most-voted player (for display only)
+        const maxVotes = Math.max(...Object.values(tally), 0);
+        const topCandidates = Object.keys(tally).filter((id) => tally[id] === maxVotes);
+        const eliminated = topCandidates.length === 1 ? topCandidates[0] : null;
+
+        const mole = room.players.find((p) => p.id === room.moleId);
         room.phase = 'result';
 
         io.to(roomCode).emit('game_result', {
           moleFound,
+          correctVoterIds,
           moleId: room.moleId,
           moleName: mole?.name,
           word: room.word,
@@ -185,23 +211,15 @@ function setupSocketHandlers(io) {
       if (!room) return callback?.({ success: false, error: 'Room not found' });
       if (room.hostId !== socket.id) return callback?.({ success: false, error: 'Only the host can do this' });
 
-      // Start a fresh game immediately — keep same players & cycle count
-      room.word = getRandomWord();
-      room.moleId = room.players[Math.floor(Math.random() * room.players.length)].id;
-      room.phase = 'secret';
-      room.clues = [];
-      room.votes = {};
-      room.clueOrder = [...room.players.map((p) => p.id)].sort(() => Math.random() - 0.5);
-      room.currentClueIndex = 0;
-      room.currentCycle = 1;
-      // totalCycles carries over from the previous game
+      // totalCycles carries over — pass undefined so startNewGame skips overwriting it
+      startNewGame(room, undefined);
 
-      // Send personalised secrets — same as start_game
       room.players.forEach((player) => {
         const isMole = player.id === room.moleId;
         io.to(player.id).emit('game_started', {
           isMole,
           word: isMole ? null : room.word,
+          hint: isMole ? room.moleHint : null,
         });
       });
 
@@ -224,7 +242,6 @@ function setupSocketHandlers(io) {
           room: sanitizeRoom(room),
         });
 
-        // Not enough players mid-game — reset remaining players to lobby
         if (room.phase !== 'lobby' && room.players.length < 2) {
           room.phase = 'lobby';
           io.to(roomCode).emit('room_updated', { room: sanitizeRoom(room) });
@@ -249,7 +266,6 @@ function setupSocketHandlers(io) {
           room: sanitizeRoom(room),
         });
 
-        // Not enough players mid-game — reset to lobby
         if (room.phase !== 'lobby' && room.players.length < 2) {
           room.phase = 'lobby';
           io.to(roomCode).emit('room_updated', { room: sanitizeRoom(room) });

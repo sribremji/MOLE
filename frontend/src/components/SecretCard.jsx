@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export default function SecretCard({ isMole, word, isHost, onStartClues }) {
+export default function SecretCard({ isMole, word, hint, isHost, onStartClues }) {
   const [revealed, setRevealed] = useState(false);
   const [flipping, setFlipping] = useState(false);
 
@@ -57,13 +57,19 @@ export default function SecretCard({ isMole, word, isHost, onStartClues }) {
             >
               {isMole ? (
                 <>
-                  <div className="text-7xl mb-4 select-none">🕵️</div>
-                  <p className="text-2xl font-black text-red-300 uppercase tracking-wide">
-                    You Are
+                  <div className="text-6xl mb-3 select-none">🕵️</div>
+                  <p className="text-red-400/70 text-xs uppercase tracking-widest mb-1">
+                    You Are The Mole
                   </p>
-                  <p className="text-5xl font-black text-red-400 mt-1">The Mole</p>
-                  <p className="text-red-300/60 text-sm mt-4 leading-relaxed">
-                    You don't know the word. Give vague clues and blend in!
+                  <p className="text-red-300/60 text-xs mb-4 leading-relaxed px-2">
+                    You don't know the real word — use this hint to blend in!
+                  </p>
+                  <p className="text-gray-400/70 text-xs uppercase tracking-widest">
+                    Your Hint
+                  </p>
+                  <p className="text-4xl font-black text-red-300 mt-1">{hint}</p>
+                  <p className="text-red-400/40 text-xs mt-4 leading-relaxed">
+                    Give clues that sound related. Don't get caught!
                   </p>
                 </>
               ) : (

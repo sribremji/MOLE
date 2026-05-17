@@ -51,15 +51,13 @@ export default function ResultScreen({ result, socketId, isHost, onLeave }) {
 
   const {
     moleFound, moleName, moleId, word,
-    votes, voteTally, eliminated,
+    correctVoterIds = [], voteTally, eliminated,
     players, clues,
   } = result;
   const totalCycles = result.totalCycles ?? 1;
 
-  // Players who correctly voted for the Mole (excludes the Mole themselves)
-  const correctGuessers = players.filter(
-    (p) => p.id !== moleId && votes?.[p.id] === moleId
-  );
+  // Players who correctly identified the Mole (server already computed this)
+  const correctGuessers = players.filter((p) => correctVoterIds.includes(p.id));
 
   // Vote tally sorted high → low
   const sortedByVotes = [...players].sort(
@@ -104,71 +102,7 @@ export default function ResultScreen({ result, socketId, isHost, onLeave }) {
           </p>
         </div>
 
-        {/* ── B. Vote Results ──────────────────────────────────────────── */}
-        <div className="bg-gray-900 rounded-2xl p-4 border border-gray-800">
-          <p className="text-gray-500 text-xs uppercase tracking-widest mb-3">
-            Vote Results
-          </p>
-          <div className="space-y-2">
-            {sortedByVotes.map((player) => {
-              const count = voteTally?.[player.id] ?? 0;
-              const isMole = player.id === moleId;
-              const isEliminated = player.id === eliminated;
-              const barPct = maxVotes > 0 ? (count / maxVotes) * 100 : 0;
-              return (
-                <div
-                  key={player.id}
-                  className={`rounded-xl px-4 py-3 ${
-                    isMole
-                      ? 'bg-red-950 border border-red-700'
-                      : 'bg-gray-800'
-                  }`}
-                  style={
-                    isMole
-                      ? { boxShadow: '0 0 14px rgba(239,68,68,0.35)' }
-                      : {}
-                  }
-                >
-                  <div className="flex items-center justify-between mb-1.5">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold">{player.name}</span>
-                      {isMole && (
-                        <span className="text-xs bg-red-600 text-white px-2 py-0.5 rounded-full">
-                          MOLE 🕵️
-                        </span>
-                      )}
-                      {isEliminated && !isMole && (
-                        <span className="text-xs bg-orange-700 text-white px-2 py-0.5 rounded-full">
-                          Eliminated
-                        </span>
-                      )}
-                      {player.id === socketId && (
-                        <span className="text-xs text-gray-500">you</span>
-                      )}
-                    </div>
-                    <span
-                      className={`font-bold text-sm flex-shrink-0 ml-2 ${
-                        isMole ? 'text-red-400' : 'text-gray-400'
-                      }`}
-                    >
-                      {count} vote{count !== 1 ? 's' : ''}
-                    </span>
-                  </div>
-                  <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-700 ${
-                        isMole ? 'bg-red-500' : 'bg-gray-500'
-                      }`}
-                      style={{ width: `${barPct}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* ── C. Correct Guessers / Consolation ───────────────────────── */}
+        {/* ── B. Correct Guessers / Consolation ───────────────────────── */}
         {moleFound && correctGuessers.length > 0 && (
           <div
             className="bg-green-950 rounded-2xl p-5 border border-green-700"
@@ -215,6 +149,64 @@ export default function ResultScreen({ result, socketId, isHost, onLeave }) {
             </p>
           </div>
         )}
+
+        {/* ── C. Vote Results ──────────────────────────────────────────── */}
+        <div className="bg-gray-900 rounded-2xl p-4 border border-gray-800">
+          <p className="text-gray-500 text-xs uppercase tracking-widest mb-3">
+            Vote Results
+          </p>
+          <div className="space-y-2">
+            {sortedByVotes.map((player) => {
+              const count = voteTally?.[player.id] ?? 0;
+              const isMolePlayer = player.id === moleId;
+              const isEliminated = player.id === eliminated;
+              const isCorrect = correctVoterIds.includes(player.id);
+              const barPct = maxVotes > 0 ? (count / maxVotes) * 100 : 0;
+              return (
+                <div
+                  key={player.id}
+                  className={`rounded-xl px-4 py-3 ${
+                    isMolePlayer ? 'bg-red-950 border border-red-700' : 'bg-gray-800'
+                  }`}
+                  style={isMolePlayer ? { boxShadow: '0 0 14px rgba(239,68,68,0.35)' } : {}}
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold">{player.name}</span>
+                      {isMolePlayer && (
+                        <span className="text-xs bg-red-600 text-white px-2 py-0.5 rounded-full">
+                          MOLE 🕵️
+                        </span>
+                      )}
+                      {isEliminated && !isMolePlayer && (
+                        <span className="text-xs bg-orange-700 text-white px-2 py-0.5 rounded-full">
+                          Most Voted
+                        </span>
+                      )}
+                      {isCorrect && (
+                        <span className="text-xs bg-green-700 text-white px-2 py-0.5 rounded-full">
+                          ✓ Correct
+                        </span>
+                      )}
+                      {player.id === socketId && (
+                        <span className="text-xs text-gray-500">you</span>
+                      )}
+                    </div>
+                    <span className={`font-bold text-sm flex-shrink-0 ml-2 ${isMolePlayer ? 'text-red-400' : 'text-gray-400'}`}>
+                      {count} vote{count !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-700 ${isMolePlayer ? 'bg-red-500' : 'bg-gray-500'}`}
+                      style={{ width: `${barPct}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
 
         {/* ── D. Mole Reveal ───────────────────────────────────────────── */}
         <div

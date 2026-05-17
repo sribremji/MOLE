@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { socket } from '../socket';
 
-export default function VotingRound({ room, clues, socketId, votedCount, totalPlayers }) {
+export default function VotingRound({ room, socketId, isMole, votedCount, totalPlayers }) {
   const [voted, setVoted] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
 
@@ -20,9 +20,40 @@ export default function VotingRound({ room, clues, socketId, votedCount, totalPl
 
   const voteProgress = totalPlayers > 0 ? (votedCount / totalPlayers) * 100 : 0;
 
+  // Mole sits out — show a waiting screen
+  if (isMole) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen px-4">
+        <div className="w-full max-w-sm text-center space-y-6">
+          <div className="text-7xl select-none">🕵️</div>
+          <div>
+            <h2 className="text-3xl font-black text-red-400">Sit Tight!</h2>
+            <p className="text-gray-500 mt-2">
+              Players are voting. Did you fool them?
+            </p>
+          </div>
+          <div className="bg-gray-900 rounded-2xl p-5 border border-gray-800">
+            <div className="flex justify-between text-sm text-gray-400 mb-2">
+              <span>Votes submitted</span>
+              <span className="font-bold text-white">{votedCount}/{totalPlayers}</span>
+            </div>
+            <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-red-500 rounded-full transition-all duration-500"
+                style={{ width: `${voteProgress}%` }}
+              />
+            </div>
+            <p className="text-gray-600 text-xs mt-3">Waiting for all players to vote…</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col items-center min-h-screen px-4 py-8">
       <div className="w-full max-w-sm space-y-5">
+
         {/* Header */}
         <div className="text-center">
           <h2 className="text-3xl font-black text-white">
@@ -35,9 +66,7 @@ export default function VotingRound({ room, clues, socketId, votedCount, totalPl
         <div className="bg-gray-900 rounded-2xl p-4 border border-gray-800">
           <div className="flex justify-between text-sm text-gray-400 mb-2">
             <span>Votes submitted</span>
-            <span className="font-bold text-white">
-              {votedCount}/{totalPlayers}
-            </span>
+            <span className="font-bold text-white">{votedCount}/{totalPlayers}</span>
           </div>
           <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
             <div
@@ -47,38 +76,10 @@ export default function VotingRound({ room, clues, socketId, votedCount, totalPl
           </div>
         </div>
 
-        {/* Clue recap — grouped by cycle */}
-        {clues.length > 0 && (() => {
-          const totalCycles = room?.totalCycles ?? 1;
-          const cycles = [];
-          for (let c = 1; c <= totalCycles; c++) {
-            const group = clues.filter((cl) => cl.cycle === c);
-            if (group.length) cycles.push({ cycle: c, group });
-          }
-          return cycles.map(({ cycle, group }) => (
-            <div key={cycle} className="bg-gray-900 rounded-2xl p-4 border border-gray-800">
-              <p className="text-gray-500 text-xs uppercase tracking-widest mb-3">
-                Cycle {cycle} / {totalCycles}
-              </p>
-              <div className="space-y-2">
-                {group.map((c, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between bg-gray-800 rounded-xl px-4 py-3"
-                  >
-                    <span className="text-gray-400 text-sm">{c.playerName}</span>
-                    <span className="font-bold text-lg text-white">{c.clue}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ));
-        })()}
-
         {/* Player vote buttons */}
         <div className="bg-gray-900 rounded-2xl p-4 border border-gray-800">
           <p className="text-gray-500 text-xs uppercase tracking-widest mb-3">
-            {voted ? 'Vote submitted!' : 'Tap to vote'}
+            {voted ? 'Vote submitted!' : 'Tap to vote — trust your gut'}
           </p>
           <div className="space-y-2">
             {room?.players?.map((player) => {
@@ -95,12 +96,12 @@ export default function VotingRound({ room, clues, socketId, votedCount, totalPl
                       : isSelf
                       ? 'bg-gray-800 text-gray-600 cursor-not-allowed'
                       : voted
-                      ? 'bg-gray-800 text-gray-400'
+                      ? 'bg-gray-800 text-gray-500'
                       : 'bg-gray-800 hover:bg-gray-700 text-white active:scale-95'
                   }`}
                 >
                   <span className="truncate">{player.name}</span>
-                  <div className="flex gap-2 flex-shrink-0 ml-2">
+                  <div className="flex gap-2 flex-shrink-0 ml-2 items-center">
                     {isSelf && (
                       <span className="text-xs text-gray-500 font-normal">You</span>
                     )}
@@ -117,7 +118,9 @@ export default function VotingRound({ room, clues, socketId, votedCount, totalPl
         {voted && (
           <div className="flex items-center justify-center gap-3 py-2">
             <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-            <p className="text-gray-400">Waiting for others… ({votedCount}/{totalPlayers})</p>
+            <p className="text-gray-400">
+              Waiting for others… ({votedCount}/{totalPlayers})
+            </p>
           </div>
         )}
       </div>

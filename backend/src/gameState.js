@@ -7,6 +7,7 @@ function createRoom(roomCode, hostId, hostName) {
     players: [{ id: hostId, name: hostName, isHost: true }],
     phase: 'lobby', // lobby | secret | clue | voting | result
     word: null,
+    moleHint: null,
     moleId: null,
     clues: [],
     votes: {},

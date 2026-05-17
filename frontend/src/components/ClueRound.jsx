@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { socket } from '../socket';
 
-export default function ClueRound({ room, clues, currentCluePlayerId, socketId, isMole, word }) {
+export default function ClueRound({ room, clues, currentCluePlayerId, socketId, isMole, word, hint }) {
   const [input, setInput] = useState('');
   const inputRef = useRef(null);
 
@@ -44,7 +44,10 @@ export default function ClueRound({ room, clues, currentCluePlayerId, socketId, 
             Clue <span className="text-red-500">Round</span>
           </h2>
           {isMole ? (
-            <p className="text-red-400 text-sm mt-1 font-semibold">You're the Mole — blend in!</p>
+            <p className="text-red-400 text-sm mt-1">
+              Your hint: <span className="text-red-300 font-bold">{hint}</span>
+              <span className="text-red-500/60"> — blend in!</span>
+            </p>
           ) : (
             <p className="text-gray-500 text-sm mt-1">
               Word: <span className="text-white font-bold">{word}</span>
