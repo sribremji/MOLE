@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(timeout 3 node index.js)",
+      "Bash(node -e \"require\\('./src/words.js'\\); require\\('./src/gameState.js'\\); require\\('./src/socketHandlers.js'\\); console.log\\('all modules OK'\\)\")",
+      "Bash(npm run *)",
+      "Bash(node -e \"require\\('./src/words.js'\\); require\\('./src/gameState.js'\\); require\\('./src/socketHandlers.js'\\); console.log\\('backend OK'\\)\")"
+    ]
+  }
+}
