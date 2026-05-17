@@ -44,9 +44,8 @@ export default function ClueRound({ room, clues, currentCluePlayerId, socketId, 
             Clue <span className="text-red-500">Round</span>
           </h2>
           {isMole ? (
-            <p className="text-red-400 text-sm mt-1">
-              Your hint: <span className="text-red-300 font-bold">{hint}</span>
-              <span className="text-red-500/60"> — blend in!</span>
+            <p className="text-red-400/80 text-xs mt-1 italic max-w-xs">
+              Hint: "{hint}"
             </p>
           ) : (
             <p className="text-gray-500 text-sm mt-1">

@@ -57,19 +57,20 @@ export default function SecretCard({ isMole, word, hint, isHost, onStartClues })
             >
               {isMole ? (
                 <>
-                  <div className="text-6xl mb-3 select-none">🕵️</div>
-                  <p className="text-red-400/70 text-xs uppercase tracking-widest mb-1">
+                  <div className="text-5xl mb-3 select-none">🕵️</div>
+                  <p className="text-red-400 font-black text-lg uppercase tracking-wide mb-3">
                     You Are The Mole
                   </p>
-                  <p className="text-red-300/60 text-xs mb-4 leading-relaxed px-2">
-                    You don't know the real word — use this hint to blend in!
-                  </p>
-                  <p className="text-gray-400/70 text-xs uppercase tracking-widest">
-                    Your Hint
-                  </p>
-                  <p className="text-4xl font-black text-red-300 mt-1">{hint}</p>
-                  <p className="text-red-400/40 text-xs mt-4 leading-relaxed">
-                    Give clues that sound related. Don't get caught!
+                  <div className="bg-red-900/40 border border-red-700/50 rounded-xl px-4 py-3 mb-3">
+                    <p className="text-red-300/60 text-xs uppercase tracking-widest mb-2">
+                      Your Hint
+                    </p>
+                    <p className="text-red-100 text-sm leading-relaxed font-medium">
+                      {hint}
+                    </p>
+                  </div>
+                  <p className="text-red-500/50 text-xs leading-relaxed">
+                    You don't know the exact word. Use your hint to give believable clues without getting caught!
                   </p>
                 </>
               ) : (

@@ -5,6 +5,7 @@ const { createServer } = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const { setupSocketHandlers } = require('./src/socketHandlers');
+const { poolSize } = require('./src/wordService');
 
 const app = express();
 const httpServer = createServer(app);
@@ -23,8 +24,8 @@ const io = new Server(httpServer, {
 app.use(cors());
 app.use(express.json());
 
-app.get('/', (_req, res) => res.json({ status: 'ok', game: 'The Mole' }));
-app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+app.get('/', (_req, res) => res.json({ status: 'ok', game: 'The Mole', wordPool: poolSize() }));
+app.get('/health', (_req, res) => res.json({ status: 'ok', wordPool: poolSize() }));
 
 setupSocketHandlers(io);
 

@@ -1,5 +1,5 @@
 const { createRoom, getRoom, generateRoomCode, removePlayer, sanitizeRoom } = require('./gameState');
-const { getRandomWord } = require('./words');
+const { getRandomWord } = require('./wordService');
 
 function startNewGame(room, totalCycles) {
   const entry = getRandomWord(); // { word, hint }
