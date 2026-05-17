@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { socket } from '../socket';
 
-export default function Lobby({ room, roomCode, socketId }) {
+export default function Lobby({ room, roomCode, socketId, onLeave }) {
   const [copying, setCopying] = useState(false);
   const [cycles, setCycles] = useState(3);
   const isHost = room?.hostId === socketId;
@@ -78,7 +78,7 @@ export default function Lobby({ room, roomCode, socketId }) {
 
         {/* Actions */}
         {isHost ? (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {/* Cycle picker */}
             <div className="bg-gray-900 rounded-2xl p-4 border border-gray-800">
               <div className="flex items-center justify-between mb-3">
@@ -117,11 +117,20 @@ export default function Lobby({ room, roomCode, socketId }) {
             </button>
           </div>
         ) : (
-          <div className="flex items-center justify-center gap-3 py-4">
-            <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-            <p className="text-gray-400">Waiting for host to start…</p>
+          <div className="space-y-3">
+            <div className="flex items-center justify-center gap-3 py-4">
+              <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+              <p className="text-gray-400">Waiting for host to start…</p>
+            </div>
           </div>
         )}
+
+        <button
+          onClick={onLeave}
+          className="w-full bg-transparent border border-gray-800 hover:border-gray-600 text-gray-500 hover:text-gray-300 font-semibold py-3 rounded-xl transition-all active:scale-95"
+        >
+          Leave Room
+        </button>
       </div>
     </div>
   );

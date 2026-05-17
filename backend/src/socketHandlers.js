@@ -185,18 +185,53 @@ function setupSocketHandlers(io) {
       if (!room) return callback?.({ success: false, error: 'Room not found' });
       if (room.hostId !== socket.id) return callback?.({ success: false, error: 'Only the host can do this' });
 
-      room.phase = 'lobby';
-      room.word = null;
-      room.moleId = null;
+      // Start a fresh game immediately — keep same players & cycle count
+      room.word = getRandomWord();
+      room.moleId = room.players[Math.floor(Math.random() * room.players.length)].id;
+      room.phase = 'secret';
       room.clues = [];
       room.votes = {};
-      room.clueOrder = [];
+      room.clueOrder = [...room.players.map((p) => p.id)].sort(() => Math.random() - 0.5);
       room.currentClueIndex = 0;
       room.currentCycle = 1;
-      room.totalCycles = 3;
+      // totalCycles carries over from the previous game
+
+      // Send personalised secrets — same as start_game
+      room.players.forEach((player) => {
+        const isMole = player.id === room.moleId;
+        io.to(player.id).emit('game_started', {
+          isMole,
+          word: isMole ? null : room.word,
+        });
+      });
 
       io.to(roomCode).emit('room_updated', { room: sanitizeRoom(room) });
-      io.to(roomCode).emit('return_to_lobby');
+      callback?.({ success: true });
+    });
+
+    socket.on('leave_room', (_, callback) => {
+      const roomCode = socket.data.roomCode;
+      if (!roomCode) return callback?.({ success: true });
+
+      const room = removePlayer(roomCode, socket.id);
+      socket.leave(roomCode);
+      socket.data.roomCode = null;
+
+      if (room) {
+        io.to(roomCode).emit('player_left', {
+          playerId: socket.id,
+          playerName: socket.data.playerName,
+          room: sanitizeRoom(room),
+        });
+
+        // Not enough players mid-game — reset remaining players to lobby
+        if (room.phase !== 'lobby' && room.players.length < 2) {
+          room.phase = 'lobby';
+          io.to(roomCode).emit('room_updated', { room: sanitizeRoom(room) });
+          io.to(roomCode).emit('return_to_lobby');
+        }
+      }
+
       callback?.({ success: true });
     });
 

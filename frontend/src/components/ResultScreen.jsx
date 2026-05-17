@@ -1,6 +1,6 @@
 import { socket } from '../socket';
 
-export default function ResultScreen({ result, socketId, isHost }) {
+export default function ResultScreen({ result, socketId, isHost, onLeave }) {
   if (!result) return null;
 
   const { moleFound, moleName, moleId, word, voteTally, eliminated, players, clues } = result;
@@ -9,6 +9,7 @@ export default function ResultScreen({ result, socketId, isHost }) {
   const handlePlayAgain = () => {
     socket.emit('play_again', {}, ({ success, error }) => {
       if (!success) alert(error || 'Could not restart');
+      // On success, server fires game_started → App.jsx switches to secret phase
     });
   };
 
@@ -136,20 +137,34 @@ export default function ResultScreen({ result, socketId, isHost }) {
           ));
         })()}
 
-        {/* Play again */}
-        {isHost ? (
+        {/* Actions */}
+        <div className="space-y-3 pb-6">
+          {isHost ? (
+            <>
+              <button
+                onClick={handlePlayAgain}
+                className="w-full bg-red-600 hover:bg-red-500 text-white font-bold text-xl py-4 rounded-xl transition-all active:scale-95"
+              >
+                🔄 Play Again — Same Room
+              </button>
+              <p className="text-center text-gray-600 text-xs">
+                New word · New mole · Same players · Same cycles
+              </p>
+            </>
+          ) : (
+            <div className="flex items-center justify-center gap-3 py-3 bg-gray-900 rounded-2xl border border-gray-800">
+              <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+              <p className="text-gray-400">Waiting for host to start again…</p>
+            </div>
+          )}
+
           <button
-            onClick={handlePlayAgain}
-            className="w-full bg-red-600 hover:bg-red-500 text-white font-bold text-xl py-4 rounded-xl transition-all active:scale-95"
+            onClick={onLeave}
+            className="w-full bg-transparent border border-gray-700 hover:border-gray-500 text-gray-400 hover:text-white font-semibold text-lg py-3 rounded-xl transition-all active:scale-95"
           >
-            Play Again
+            Leave Room
           </button>
-        ) : (
-          <div className="flex items-center justify-center gap-3 py-4">
-            <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-            <p className="text-gray-400">Waiting for host to play again…</p>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );

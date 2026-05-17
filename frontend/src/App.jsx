@@ -12,7 +12,7 @@ export default function App() {
   const [playerName, setPlayerName] = useState('');
   const [roomCode, setRoomCode] = useState('');
   const [room, setRoom] = useState(null);
-  const [gameSecret, setGameSecret] = useState(null); // { isMole, word }
+  const [gameSecret, setGameSecret] = useState(null);
   const [gameResult, setGameResult] = useState(null);
   const [clues, setClues] = useState([]);
   const [currentCluePlayerId, setCurrentCluePlayerId] = useState(null);
@@ -26,6 +26,15 @@ export default function App() {
     setTimeout(() => setNotification(''), 3000);
   };
 
+  const resetGameState = () => {
+    setGameSecret(null);
+    setGameResult(null);
+    setClues([]);
+    setVotedCount(0);
+    setTotalPlayers(0);
+    setCurrentCluePlayerId(null);
+  };
+
   useEffect(() => {
     socket.connect();
 
@@ -34,15 +43,16 @@ export default function App() {
 
     socket.on('room_updated', ({ room }) => setRoom(room));
 
+    // Fired on first start AND on play_again — reset all prior game state
     socket.on('game_started', ({ isMole, word }) => {
+      resetGameState();
       setGameSecret({ isMole, word });
       setPhase('secret');
     });
 
-    // Fires for cycle 1 (from ready_for_clues) and every subsequent cycle
     socket.on('cycle_started', ({ room, currentPlayerId }) => {
       setRoom(room);
-      setClues(room.clues); // accumulates across cycles
+      setClues(room.clues);
       setCurrentCluePlayerId(currentPlayerId);
       setPhase('clue');
     });
@@ -71,11 +81,9 @@ export default function App() {
       setPhase('result');
     });
 
+    // Fired when too few players remain mid-game
     socket.on('return_to_lobby', () => {
-      setGameSecret(null);
-      setGameResult(null);
-      setClues([]);
-      setVotedCount(0);
+      resetGameState();
       setPhase('lobby');
     });
 
@@ -131,6 +139,16 @@ export default function App() {
     socket.emit('ready_for_clues', {});
   };
 
+  const handleLeaveRoom = () => {
+    socket.emit('leave_room', {}, () => {
+      resetGameState();
+      setRoom(null);
+      setRoomCode('');
+      setPlayerName('');
+      setPhase('home');
+    });
+  };
+
   const socketId = socket.id;
   const isHost = room?.hostId === socketId;
 
@@ -154,7 +172,7 @@ export default function App() {
         <Home onCreateRoom={handleCreateRoom} onJoinRoom={handleJoinRoom} connected={connected} />
       )}
       {phase === 'lobby' && (
-        <Lobby room={room} roomCode={roomCode} socketId={socketId} />
+        <Lobby room={room} roomCode={roomCode} socketId={socketId} onLeave={handleLeaveRoom} />
       )}
       {phase === 'secret' && (
         <SecretCard
@@ -188,6 +206,7 @@ export default function App() {
           result={gameResult}
           socketId={socketId}
           isHost={isHost}
+          onLeave={handleLeaveRoom}
         />
       )}
     </div>
