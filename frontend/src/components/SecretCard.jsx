@@ -61,11 +61,11 @@ export default function SecretCard({ isMole, word, hint, isHost, onStartClues })
                   <p className="text-red-400 font-black text-lg uppercase tracking-wide mb-3">
                     You Are The Mole
                   </p>
-                  <div className="bg-red-900/40 border border-red-700/50 rounded-xl px-4 py-3 mb-3">
-                    <p className="text-red-300/60 text-xs uppercase tracking-widest mb-2">
+                  <div className="bg-red-900/40 border border-red-700/50 rounded-xl px-4 py-5 mb-3">
+                    <p className="text-red-300/60 text-xs uppercase tracking-widest mb-3">
                       Your Hint
                     </p>
-                    <p className="text-red-100 text-sm leading-relaxed font-medium">
+                    <p className="text-red-100 text-4xl font-black tracking-wide">
                       {hint}
                     </p>
                   </div>

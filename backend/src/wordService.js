@@ -2,13 +2,17 @@
  * Word Service
  *
  * Strategy:
- *  1. Start with 87 curated words that have hand-written sentence hints.
+ *  1. Start with 87 curated words that have hand-crafted single-word broad hints.
  *  2. On startup, query Datamuse API for high-frequency English nouns across
- *     several word lengths and add any that (a) we can fetch a definition for
+ *     several word lengths and add any that (a) we can generate a hint for
  *     and (b) pass a basic "gameable" filter.
  *  3. Track recently used words (last 20) so the same word is never repeated
  *     within the same session.
  *  4. If all network calls fail, the local bank is the fallback — the game always works.
+ *
+ * Hint rules: ONE WORD ONLY — broad situational/contextual association.
+ *   ✓ Pizza → Party   ✓ Beach → Holiday   ✓ Hospital → Emergency
+ *   ✗ Pizza → Cheese  ✗ Beach → Sand      ✗ Hospital → Doctor
  */
 
 const { WORD_BANK } = require('./words');
@@ -69,29 +73,43 @@ async function fetchWordsByLength(len) {
 }
 
 /**
- * Fetch the first dictionary definition of a word from Datamuse,
- * and convert it into a Mole hint sentence by removing the word itself.
+ * Generate a single broad-association hint word for the Mole.
+ *
+ * Strategy: fetch Datamuse trigger-words (contextually associated words)
+ * then pick one that is:
+ *   - a single clean word
+ *   - not too similar to the target (no substring overlap, no shared 4-char prefix)
+ *   - sampled from the mid-range of the list (skip the most direct/obvious hits)
+ *
+ * Returns a capitalized single word, or null if nothing usable is found.
  */
-async function hintFromDefinition(word) {
-  const url = `https://api.datamuse.com/words?sp=${encodeURIComponent(word.toLowerCase())}&md=dp&max=1`;
+async function hintForWord(word) {
+  const lower = word.toLowerCase();
+
+  const url = `https://api.datamuse.com/words?rel_trg=${encodeURIComponent(lower)}&max=30`;
   const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
   const data = await res.json();
 
-  const defs = data[0]?.defs;
-  if (!defs?.length) return null;
+  const tooSimilar = (w) => {
+    if (w === lower) return true;
+    if (lower.includes(w) || w.includes(lower)) return true;
+    if (w.length >= 4 && lower.length >= 4 && w.slice(0, 4) === lower.slice(0, 4)) return true;
+    return false;
+  };
 
-  // Datamuse format: "n\tthe definition text here"
-  let def = defs[0].replace(/^[a-z]\t/, '').trim();
-  if (!def || def.length < 10) return null;
+  const candidates = data
+    .map((w) => w.word)
+    .filter((w) => /^[a-z]+$/.test(w) && !tooSimilar(w));
 
-  // Anonymise the word and obvious variants from the definition
-  const wordRegex = new RegExp(`\\b${word}s?\\b`, 'gi');
-  def = def.replace(wordRegex, 'this');
-  if (!def.endsWith('.')) def += '.';
+  if (!candidates.length) return null;
 
-  // Wrap in a sentence that sounds like a hint
-  def = def.charAt(0).toUpperCase() + def.slice(1);
-  return `${def} Use what you know to give clues without revealing the exact word.`;
+  // Skip the first few most-direct results; sample from the broader middle range
+  const start = Math.min(3, candidates.length - 1);
+  const end   = Math.min(12, candidates.length);
+  const pool  = candidates.slice(start, end);
+  const pick  = pool[Math.floor(Math.random() * pool.length)];
+
+  return capitalize(pick);
 }
 
 // ── Pool expansion ─────────────────────────────────────────────────────────────
@@ -119,7 +137,7 @@ async function loadAPIWords() {
 
         let hint;
         try {
-          hint = await hintFromDefinition(word);
+          hint = await hintForWord(word);
         } catch {
           hint = null;
         }
